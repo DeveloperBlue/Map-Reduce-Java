@@ -19,8 +19,7 @@ public class MapReduce {
 	static MapperReducerAPI customMR; 
 	static int numPartitions;
 	
-	static void MREmit(Object key, Object value)
-	{
+	static void MREmit(Object key, Object value) {
 		//TODO: (key, value) must be emit into PartitionTable.
 		// use Partitioner defined in MapperReducerAPI to
 		// compute the index of partitions where this key will be
@@ -33,7 +32,7 @@ public class MapReduce {
 	}
 	
 	static Object MRGetNext(Object key, int partition_number) {
-		
+
 		//TODO: implement MRGetNext based on the key and partition_number
 		//The state of how many keys have been visited must be saved
 		//somewhere because a reducer could be interrupted and switched off
@@ -97,11 +96,58 @@ public class MapReduce {
 
 	}
 
+	/////////////////
+
+	class Sorter {
+
+		long partition_index;
+
+		public Sorter(){
+
+			//each sorter needs to know which partition it works on, so it needs partition index
+
+			//int partitionIdx? //give it a better name! 
+
+			//impl run() for sorters. In run each sorter calls sorting on partition
+			//then wake up waiting reducer, perhaps cv_of_partition_ i.signal()?
+
+
+		}
+
+		public static void run(){
+
+		}
+
+	}
+
+	class Mapper {
+
+		String fileName;
+
+		public Mapper(String fileName){
+			this.fileName = fileName;
+		}
+
+		public static void run(){
+			
+		}
+
+		// Each mapper needs to know which file to work on! So it needs file name.
+		//String filename 
+		//impl run() for mappers. In run each mapper calls user defined map() (which scans the file, and calls MREmit) to inject a kv to //partition table
+
+	}
+
+
+
+	/////////////////
+
 	public static void MRPostProcess(String key, int value) {
 		pwLock.lock();
 		pw.printf("%s:%d\n", (String)key, value); 
 		pwLock.unlock();
 	}
+
 	private static void setup (int nSplits, String inputFile) {
 		try {
 			pwLock = new ReentrantLock();
