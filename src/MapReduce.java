@@ -25,25 +25,50 @@ public class MapReduce {
 		// use Partitioner defined in MapperReducerAPI to
 		// compute the index of partitions where this key will be
 		// added.
+
+		long partition_index = customMR.Partitioner(key, numPartitions);
+
+		pt.addToPartition(partition_index, key, value);
 		
 	}
 	
 	static Object MRGetNext(Object key, int partition_number) {
+		
 		//TODO: implement MRGetNext based on the key and partition_number
 		//The state of how many keys have been visited must be saved
 		//somewhere because a reducer could be interrupted and switched off
+
+		//dragon here,  Usually user supplied reduce() invokes this function to get and process all the //values for a key,
+		//for instance, keep on calling MRGetNext(“fox”) three times to figure out there are 3 “fox” in text.
+		//  while ((MapReduce.MRGetNext(key, partition_number)) != null)
+		// 	count++;
+		//this has to work like an “iterator”...
+		//each reducer could have a different progress of reduction. MRGetNext is a static method but it
+		//has to figure out the cursor on each partition.
+		//perhaps maintain an array of visiting states in PartitionTable? 
 		
 		return null; //just to pass compile.
 		
 	}
-	static void MRRun(String inputFileName, 
-		    		  MapperReducerAPI mapperReducerObj, 
-		    		  int num_mappers, 
-		    		  int num_reducers)
-	{	
+
+	static void MRRun(String inputFileName, MapperReducerAPI mapperReducerObj, int num_mappers, int num_reducers){	
 		setup(num_mappers, inputFileName);
 		//TODO: launch mappers, main thread must join all mappers before
 		// starting sorters and reducers
+
+		pt = new PartitionTable();
+		customMR = mapperReducerObj;
+		numPartitions = num_reducers;
+
+		// inputFileName_i
+		// We should chunk the contents of inputFileName . . .
+
+		for (int i = 0; i < num_mappers; i++){
+			Thread mapper_i = new Thread(new Mapper(inputFileName_i));
+			mapper_i.start();
+			mapper_i.join();
+		}
+
 		
     	LOGGER.log(Level.INFO, "All Maps are completed");
 		
@@ -52,11 +77,26 @@ public class MapReduce {
     	// over the kv list in the partition[i] and starts sorting, then mapper[i]
     	// can start adding more to partition right away. Reducer[i] waits for 
     	// sorter to sort all kv pairs
+
+    	for (int i = 0; i < numPartitions; i++){
+    		Thread sorter_i = new Thread(new Sorter(i));
+    		sorter_i.start();
+    		sorter_i.join(); // isNeeded?
+    	}
+
+    	for (int i = 0; i < num_reducers; i++){
+    		Thread reducer_i = new Thread(new Reducer(i));
+    		reducer_i.start();
+    		reducer_i.join();
+    	}
+
+
     	//Main thread waits for reducers to complete.
         LOGGER.log(Level.INFO,"Execution of all maps and reduces took in seconds: {0}", (stopWatch.getElapsedTime()));
 		teardown();
 
 	}
+
 	public static void MRPostProcess(String key, int value) {
 		pwLock.lock();
 		pw.printf("%s:%d\n", (String)key, value); 
