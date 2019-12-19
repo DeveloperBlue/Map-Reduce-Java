@@ -62,11 +62,21 @@ public class MapReduce {
 		// inputFileName_i
 		// We should chunk the contents of inputFileName . . .
 
+		Thread[] map_array = new Thread [num_mappers];
+
 		for (int i = 0; i < num_mappers; i++){
 			Thread mapper_i = new Thread(new Mapper(inputFileName_i));
+			map_array[i] = mapper_i;
 			mapper_i.start();
-			mapper_i.join();
 		}
+
+		for (int i = 0; i < map_array.length; i++){
+			map_array[i].join();
+		}
+
+		// TODO
+		// Mappers go back and map more files
+		// Need to check how many files we have to map, and where we are in the mapping process . . .
 
 		
     	LOGGER.log(Level.INFO, "All Maps are completed");
@@ -77,17 +87,31 @@ public class MapReduce {
     	// can start adding more to partition right away. Reducer[i] waits for 
     	// sorter to sort all kv pairs
 
+    	Thread sort_array = new Thread [numPartitions];
+
     	for (int i = 0; i < numPartitions; i++){
     		Thread sorter_i = new Thread(new Sorter(i));
+    		sort_array[i] = sorter_i;
     		sorter_i.start();
-    		sorter_i.join(); // isNeeded?
     	}
+
+    	for (int i = 0; i < sort_array.length; i++){
+			sort_array[i].join();
+		}
+
+		//
+
+		Thread reducer_array = new Thread [num_reducers];
 
     	for (int i = 0; i < num_reducers; i++){
     		Thread reducer_i = new Thread(new Reducer(i));
+    		reducer_array[i] = reducer_i;
     		reducer_i.start();
-    		reducer_i.join();
     	}
+
+    	for (int i = 0; i < reducer_array.length; i++){
+			reducer_array[i].join();
+		}
 
 
     	//Main thread waits for reducers to complete.
@@ -98,28 +122,6 @@ public class MapReduce {
 
 	/////////////////
 
-	class Sorter {
-
-		long partition_index;
-
-		public Sorter(){
-
-			//each sorter needs to know which partition it works on, so it needs partition index
-
-			//int partitionIdx? //give it a better name! 
-
-			//impl run() for sorters. In run each sorter calls sorting on partition
-			//then wake up waiting reducer, perhaps cv_of_partition_ i.signal()?
-
-
-		}
-
-		public static void run(){
-
-		}
-
-	}
-
 	class Mapper {
 
 		String fileName;
@@ -129,7 +131,7 @@ public class MapReduce {
 		}
 
 		public static void run(){
-			
+			customMR.Map(filename);
 		}
 
 		// Each mapper needs to know which file to work on! So it needs file name.
@@ -138,6 +140,48 @@ public class MapReduce {
 
 	}
 
+	class Sorter {
+
+		long partition_index;
+		Partition partition;
+
+		public Sorter(long partition_index){
+
+			//each sorter needs to know which partition it works on, so it needs partition index
+
+			//int partitionIdx? //give it a better name! 
+
+			this.partition_index = partition_index;
+			this.partition = pt.getPartitionAtIndex(partition_index);
+
+			//impl run() for sorters. In run each sorter calls sorting on partition
+			//then wake up waiting reducer, perhaps cv_of_partition_ i.signal()?
+		}
+
+		public static void run(){
+			partition.sortPartition();
+			partition.signalReducer();
+		}
+
+	}
+
+	class Reducer {
+
+		int partition_index;
+
+		public Reducer (int partition_index){
+			this.partition_index = partition_index;
+		}
+
+		public static void run(){
+
+			LinkedList partition_list = pt.
+
+			Object current_key = 
+		}
+
+
+	}
 
 
 	/////////////////

@@ -6,8 +6,50 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class Partition {
 
-	public Partition(){
+	public LinkedList<KV> partitionList;
+	public Lock partition_lock = new ReentrantLock();
+	public Condition triggerReducer = partition_lock.newCondition();
 
+	public boolean isSorted;
+
+	public Partition(){
+		partitionList = new LinkedList<>();
+		isSorted = true;
+	}
+
+	void addToPartition(KV key) {
+		partition_lock.lock();
+		try {
+			partitionList.insertSort(key, Comparator.comparing(kv -> kv.key.toString()));
+			isSorted = false;
+		} catch (Exception e){
+			e.printStackTrace();
+		} finally {
+			partition_lock.unlock();
+		}
+		
+	}
+
+	void printPartition() {
+		partitionList.toString();
+	}
+
+	void sortPartition(){
+		// Sort using mergesort?
+		// But we already sorted when inserting :question_mark:
+		isSorted = true;
+	}
+
+	void signalReducer(){
+
+	}
+
+	boolean getIsSorted(){
+		return isSorted;
+	}
+
+	LinkedList.Node<KV> getPartitionListHead() {
+		return partitionList.head;
 	}
 	
 	//how many linked lists in it?
