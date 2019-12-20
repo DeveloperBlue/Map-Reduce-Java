@@ -12,9 +12,9 @@ public class Partition {
 	public LinkedList<KV> partitionList;
 	public Lock partition_lock = new ReentrantLock();
 	public Condition triggerReducer = partition_lock.newCondition();
-
 	
-	public int visitState = 0;
+	public int currentMRCursor;
+
 	public boolean isSorted;
 	public boolean wasReducerSignaled;
 
@@ -22,20 +22,10 @@ public class Partition {
 		this.partition_index = partition_index;
 		this.isSorted = false;
 		this.wasReducerSignaled = false;
+		this.currentMRCursor = 0;
 		partitionList = new LinkedList<>();
 	}
-	
-	void incremenetVisitState() {
-		visitState++;
-	}
-	
-	int getVisitState() {
-		return visitState;
-	}
-	
-	void resetVisitState() {
-		visitState = 0;
-	}
+
 
 	void addToPartition(KV key) {
 		/*

@@ -1,9 +1,12 @@
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
@@ -41,14 +44,18 @@ public class MapReduce {
 		
 		Partition current_partition = pt.getPartitionAtIndex(partition_number);
 		
-		int lastVisitState = current_partition.getVisitState();
-		KV node = current_partition.partitionList.get(lastVisitState);
-		current_partition.incremenetVisitState();
-		
-		if (key.equals(node.key)) {
-			return node;
+		try {
+			KV node = current_partition.partitionList.get(current_partition.currentMRCursor);
+			
+			if (Objects.equals(node.key, key)) {
+				current_partition.currentMRCursor = current_partition.currentMRCursor + 1;
+				return node;
+			} else {
+				return null;
+			}
+		} catch (IndexOutOfBoundsException e) {
+			current_partition.currentMRCursor = current_partition.currentMRCursor + 1;			
 		}
-
 		//dragon here,  Usually user supplied reduce() invokes this function to get and process all the //values for a key,
 		//for instance, keep on calling MRGetNext(“fox”) three times to figure out there are 3 “fox” in text.
 		//  while ((MapReduce.MRGetNext(key, partition_number)) != null)
@@ -63,6 +70,12 @@ public class MapReduce {
 	}
 	
 	static String getSplitFileName(String filename, int current, int maximum) {
+		if (current < 10) {
+			return filename + ".0" + current;
+		} else {
+			return filename + "." + current;
+		}
+		/*
 		int ln_cur = String.valueOf(current).length();
 		int ln_max = String.valueOf(maximum).length();
 		if (ln_cur < ln_max) {
@@ -70,6 +83,7 @@ public class MapReduce {
 		} else {
 			return filename + "." + current;
 		}
+		*/
 	}
 
 	static void MRRun(String inputFileName, MapperReducerAPI mapperReducerObj, int num_mappers, int num_reducers){
@@ -114,7 +128,7 @@ public class MapReduce {
 			}
 		}
 
-		pt.printPartitions();
+		// pt.printPartitions();
 		
     	LOGGER.log(Level.INFO, "All Maps are completed");
     	
@@ -141,12 +155,12 @@ public class MapReduce {
     	for (int i = 0; i < num_reducers; i++){
     		Thread reducer_i = new Thread(new Reducer(i));
     		reducer_array[i] = reducer_i;
+    		System.out.println("Waiting for Reducer " + i);
     		reducer_i.start();
     	}
     	
     	for (int i = 0; i < reducer_array.length; i++){
 			try {
-				System.out.println("Waiting for reducer " + i);
 				reducer_array[i].join();
 			} catch (InterruptedException e) {
 				// TODO Auto-generated catch block
@@ -247,7 +261,21 @@ public class MapReduce {
 				// busy wait . . .
 			}
 			*/
-
+			
+			Iterator<KV> partition_iterator = partition.partitionList.iterator();
+			KV last_kv = null;
+			
+			while (partition_iterator.hasNext()) {
+				
+				KV current_kv = partition_iterator.next();
+				
+				if ((last_kv == null) || !(Objects.equals(last_kv.key, current_kv.key))) {
+					customMR.Reduce(current_kv.key, partition_index);
+					last_kv = current_kv;
+				}
+				
+			}
+		
 			System.out.println("Completed reduction on Partition " + this.partition_index);
 
 		}
@@ -260,6 +288,7 @@ public class MapReduce {
 
 	public static void MRPostProcess(String key, int value) {
 		pwLock.lock();
+		System.out.printf("%s:%d\n", (String)key, value);
 		pw.printf("%s:%d\n", (String)key, value); 
 		pwLock.unlock();
 	}
@@ -284,6 +313,14 @@ public class MapReduce {
 		pw.close();
         try {
 			Process p = Runtime.getRuntime().exec(new String[] { "/bin/sh" , "-c", "./test.sh" });
+
+			// Strange bug on my machine were p.waitFor() never returns
+			// Fixed using: https://stackoverflow.com/questions/5483830/process-waitfor-never-returns
+			
+			BufferedReader reader =
+			new BufferedReader(new InputStreamReader(p.getInputStream()));
+			while ((reader.readLine()) != null) {}
+			//
 			p.waitFor();
 			int exitVal = p.exitValue();
 	        if(exitVal == 0) {
