@@ -33,6 +33,8 @@ public class Partition {
 		 * Sadly we can't just insert sort, as that defeats the purpose of the project
 		 * 
 		*/
+		
+		/*
 		partition_lock.lock();
 		try {
 			partitionList.insertSort(key, Comparator.comparing(kv -> kv.key.toString()));
@@ -41,11 +43,11 @@ public class Partition {
 		} finally {
 			partition_lock.unlock();
 		}
+		*/
 		
-		
-		// partition_lock.lock();
-		// partitionList.addLast(key);
-		// partition_lock.unlock();
+		partition_lock.lock();
+		partitionList.addLast(key);
+		partition_lock.unlock();
 		
 	}
 
@@ -65,6 +67,8 @@ public class Partition {
 		
 		// TODO
 		// Now we implement a sort . . .
+		
+		partitionList.setHead(partitionList.mergeSort(partitionList.getHead())); 
 		
 		System.out.println("Finished sorting " + partition_index);
 		isSorted = true;

@@ -134,7 +134,7 @@ public class MapReduce {
 			}
 		}
 
-		pt.printPartitions();
+		// pt.printPartitions();
 		
     	LOGGER.log(Level.INFO, "All Maps are completed");
     	

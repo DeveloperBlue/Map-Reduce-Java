@@ -259,6 +259,89 @@ public class LinkedList<AnyType> implements Iterable<AnyType>
        //insert between cur and prev
        prev.next = new Node<AnyType>(key, cur);  
     }
+    
+   /**
+     * Merge Sort
+     * 
+     */
+    
+    Node<AnyType> getHead(){
+    	return head;
+    }
+    
+    void setHead(Node<AnyType> n) {
+    	head = n;
+    }
+    
+    Node<AnyType> mergeSort(Node<AnyType> h) {
+		
+    	
+    	if (h == null || h.next == null) {
+    		return h;
+    	}
+    	
+    	Node<AnyType> middle = getMiddle(h);
+    	Node<AnyType> middle_next = middle.next;
+    	
+    	middle.next = null;
+    	
+    	Node<AnyType> left = mergeSort(h);
+    	Node<AnyType> right = mergeSort(middle_next);
+    	
+    	Node<AnyType> sorted_list = sortedMerge(left, right);
+    	
+    	return sorted_list;
+    }
+    
+    Node<AnyType> getMiddle(Node<AnyType> h){
+    	
+    	if (h == null) {
+    		return h;
+    	}
+    	
+    	Node<AnyType> slow = h;
+    	Node<AnyType> fast = h;
+    	
+    	while (fast.next != null && fast.next.next != null) {
+    		slow = slow.next;
+    		fast = fast.next.next;
+    	}
+    	
+    	return slow;
+    	
+    }
+    
+    Node<AnyType> sortedMerge(Node<AnyType> a, Node<AnyType> b){
+    	
+    	Node<AnyType> result = null;
+    	
+    	if (a == null) {
+    		return b;
+    	}
+    	if (b == null) {
+    		return a;
+    	}
+    	
+    	int cmp;
+    	
+    	if (a.data instanceof KV && b.data instanceof KV) {
+    		cmp = ((KV)a.data).compareTo((KV)b.data);
+    	} else {
+    		cmp = a.data.toString().compareTo(b.data.toString());
+    	}
+    	
+    	if (cmp <= 0) {
+    		result = a;
+    		result.next = sortedMerge(a.next, b);
+    	} else {
+    		result = b;
+    		result.next = sortedMerge(a, b.next);
+    	}
+    	
+    	return result;
+    }
+    
+    
    
  /*******************************************************
  *
@@ -331,6 +414,8 @@ public class LinkedList<AnyType> implements Iterable<AnyType>
    public static void main(String[] args)
    {
       LinkedList<String> list = new LinkedList <String>();
+      
+      /*
       list.addFirst("p");
       list.addFirst("a");
       list.addFirst("e");
@@ -361,6 +446,18 @@ public class LinkedList<AnyType> implements Iterable<AnyType>
       System.out.println(list);
 
       list.remove("p");
+      System.out.println(list);
+      */
+      
+      list.addFirst("a");
+      list.addFirst("c");
+      list.addFirst("b");
+      list.addFirst("h");
+      list.addFirst("d");
+      list.addFirst("e");
+      System.out.println(list);
+      
+      list.setHead(list.mergeSort(list.getHead()));
       System.out.println(list);
 	}
 
