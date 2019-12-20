@@ -1,3 +1,5 @@
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -27,7 +29,7 @@ public class MapReduce {
 
 		long partition_index = customMR.Partitioner(key, numPartitions);
 
-		pt.addToPartition(partition_index, key, value);
+		pt.addToPartition((int) partition_index, new KV(key, value));
 		
 	}
 	
@@ -36,6 +38,16 @@ public class MapReduce {
 		//TODO: implement MRGetNext based on the key and partition_number
 		//The state of how many keys have been visited must be saved
 		//somewhere because a reducer could be interrupted and switched off
+		
+		Partition current_partition = pt.getPartitionAtIndex(partition_number);
+		
+		int lastVisitState = current_partition.getVisitState();
+		KV node = current_partition.partitionList.get(lastVisitState);
+		current_partition.incremenetVisitState();
+		
+		if (key.equals(node.key)) {
+			return node;
+		}
 
 		//dragon here,  Usually user supplied reduce() invokes this function to get and process all the //values for a key,
 		//for instance, keep on calling MRGetNext(“fox”) three times to figure out there are 3 “fox” in text.
@@ -49,38 +61,64 @@ public class MapReduce {
 		return null; //just to pass compile.
 		
 	}
+	
+	static String getSplitFileName(String filename, int current, int maximum) {
+		int ln_cur = String.valueOf(current).length();
+		int ln_max = String.valueOf(maximum).length();
+		if (ln_cur < ln_max) {
+			return filename + "." + "0".repeat(ln_max - ln_cur) + current;
+		} else {
+			return filename + "." + current;
+		}
+	}
 
 	static void MRRun(String inputFileName, MapperReducerAPI mapperReducerObj, int num_mappers, int num_reducers){
 		
+		System.out.println("Working Directory: \"" + System.getProperty("user.dir") + "\"");
+		System.out.println("InputFileName: " + inputFileName);
+		
+		File file_check = new File(inputFileName);
+		
+		try {
+			if (!file_check.exists()) {
+				throw new FileNotFoundException();
+			}
+		} catch (FileNotFoundException e) {
+			System.out.println("Failed to find file in cwd " + System.getProperty("user.dir"));
+			System.exit(0);
+		}
+		
 		setup(num_mappers, inputFileName);
+
 		//TODO: launch mappers, main thread must join all mappers before
 		// starting sorters and reducers
 
-		pt = new PartitionTable();
+		pt = new PartitionTable(num_mappers);
 		customMR = mapperReducerObj;
 		numPartitions = num_reducers;
-
-		// inputFileName_i
-		// We should chunk the contents of inputFileName . . .
 
 		Thread[] map_array = new Thread [num_mappers];
 
 		for (int i = 0; i < num_mappers; i++){
-			Thread mapper_i = new Thread(new Mapper(inputFileName_i));
+			Thread mapper_i = new Thread(new Mapper(getSplitFileName(inputFileName, i, num_mappers)));
 			map_array[i] = mapper_i;
 			mapper_i.start();
 		}
 
 		for (int i = 0; i < map_array.length; i++){
-			map_array[i].join();
+			try {
+				map_array[i].join();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
-		// TODO
-		// Mappers go back and map more files
-		// Need to check how many files we have to map, and where we are in the mapping process . . .
-
+		pt.printPartitions();
 		
     	LOGGER.log(Level.INFO, "All Maps are completed");
+    	
+    	
 		
     	//TODO: launch sorters and reducers. Each partition is assigned a sorter
     	// and a reducer which works like a *pipeline* with mapper. Sorter[i] takes 
@@ -88,7 +126,7 @@ public class MapReduce {
     	// can start adding more to partition right away. Reducer[i] waits for 
     	// sorter to sort all kv pairs
 
-    	Thread sort_array = new Thread [numPartitions];
+    	Thread[] sort_array = new Thread [numPartitions];
 
     	for (int i = 0; i < numPartitions; i++){
     		Thread sorter_i = new Thread(new Sorter(i));
@@ -98,16 +136,22 @@ public class MapReduce {
 
 		//
 
-		Thread reducer_array = new Thread [num_reducers];
-
+		Thread[] reducer_array = new Thread [num_reducers];
+		
     	for (int i = 0; i < num_reducers; i++){
     		Thread reducer_i = new Thread(new Reducer(i));
     		reducer_array[i] = reducer_i;
     		reducer_i.start();
     	}
-
+    	
     	for (int i = 0; i < reducer_array.length; i++){
-			reducer_array[i].join();
+			try {
+				System.out.println("Waiting for reducer " + i);
+				reducer_array[i].join();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 
@@ -119,7 +163,7 @@ public class MapReduce {
 
 	/////////////////
 
-	static class Mapper {
+	static class Mapper extends Thread {
 
 		String fileName;
 
@@ -127,8 +171,8 @@ public class MapReduce {
 			this.fileName = fileName;
 		}
 
-		public static void run(){
-			customMR.Map(filename);
+		public void run(){
+			customMR.Map(fileName);
 		}
 
 		// Each mapper needs to know which file to work on! So it needs file name.
@@ -137,12 +181,12 @@ public class MapReduce {
 
 	}
 
-	static class Sorter {
+	static class Sorter extends Thread {
 
-		long partition_index;
+		int partition_index;
 		Partition partition;
 
-		public Sorter(long partition_index){
+		public Sorter(int partition_index){
 
 			//each sorter needs to know which partition it works on, so it needs partition index
 
@@ -155,13 +199,24 @@ public class MapReduce {
 			//then wake up waiting reducer, perhaps cv_of_partition_ i.signal()?
 		}
 
-		public static void run(){
+		public void run(){
+			
+			System.out.println("Sorting Partition " + this.partition_index);
 			partition.sortPartition();
+			
+			if (!partition.wasReducerSignaled) {
+				synchronized(partition) {
+					System.out.println("Signaling Reducer for Partition " + this.partition_index);
+					partition.wasReducerSignaled = true;
+					partition.notify();
+				}
+			}
+			
 		}
 
 	}
 
-	static class Reducer {
+	static class Reducer extends Thread {
 
 		int partition_index;
 		Partition partition;
@@ -171,14 +226,29 @@ public class MapReduce {
 			this.partition = pt.getPartitionAtIndex(partition_index);
 		}
 
-		public static void run(){
-
+		public void run(){
+			
+			System.out.println("Recuder for Partition " + this.partition_index + " waiting for signal . . .");
+			
+			if (!partition.wasReducerSignaled) {
+				synchronized(partition) {
+					try {
+						partition.wait();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+			
+			/*
 			while (!partition.isSorted()){
-				System.out.println("Busy wait on partition " + partition_index);
+				// System.out.println("Busy wait on partition " + this.partition_index);
 				// busy wait . . .
 			}
+			*/
 
-			System.out.println("Done!");
+			System.out.println("Completed reduction on Partition " + this.partition_index);
 
 		}
 
