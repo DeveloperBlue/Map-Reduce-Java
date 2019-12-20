@@ -50,7 +50,8 @@ public class MapReduce {
 		
 	}
 
-	static void MRRun(String inputFileName, MapperReducerAPI mapperReducerObj, int num_mappers, int num_reducers){	
+	static void MRRun(String inputFileName, MapperReducerAPI mapperReducerObj, int num_mappers, int num_reducers){
+		
 		setup(num_mappers, inputFileName);
 		//TODO: launch mappers, main thread must join all mappers before
 		// starting sorters and reducers
@@ -95,10 +96,6 @@ public class MapReduce {
     		sorter_i.start();
     	}
 
-    	for (int i = 0; i < sort_array.length; i++){
-			sort_array[i].join();
-		}
-
 		//
 
 		Thread reducer_array = new Thread [num_reducers];
@@ -122,7 +119,7 @@ public class MapReduce {
 
 	/////////////////
 
-	class Mapper {
+	static class Mapper {
 
 		String fileName;
 
@@ -140,7 +137,7 @@ public class MapReduce {
 
 	}
 
-	class Sorter {
+	static class Sorter {
 
 		long partition_index;
 		Partition partition;
@@ -160,24 +157,29 @@ public class MapReduce {
 
 		public static void run(){
 			partition.sortPartition();
-			partition.signalReducer();
 		}
 
 	}
 
-	class Reducer {
+	static class Reducer {
 
 		int partition_index;
+		Partition partition;
 
 		public Reducer (int partition_index){
 			this.partition_index = partition_index;
+			this.partition = pt.getPartitionAtIndex(partition_index);
 		}
 
 		public static void run(){
 
-			LinkedList partition_list = pt.
+			while (!partition.isSorted()){
+				System.out.println("Busy wait on partition " + partition_index);
+				// busy wait . . .
+			}
 
-			Object current_key = 
+			System.out.println("Done!");
+
 		}
 
 
@@ -207,6 +209,7 @@ public class MapReduce {
 			LOGGER.log(Level.SEVERE, e.toString());
 		}
 	}
+
 	static private void teardown( ) {
 		pw.close();
         try {

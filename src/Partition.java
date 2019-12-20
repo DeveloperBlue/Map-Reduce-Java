@@ -35,7 +35,7 @@ public class Partition {
 	}
 
 	void sortPartition(){
-		// Sort using mergesort?
+		// We can't use mergesort as this defeats the purpose of the project
 		// But we already sorted when inserting :question_mark:
 		isSorted = true;
 	}
