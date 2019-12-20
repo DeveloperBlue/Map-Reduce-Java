@@ -11,6 +11,7 @@ public class Partition {
 	
 	public LinkedList<KV> partitionList;
 	public Lock partition_lock = new ReentrantLock();
+	
 	public Condition triggerReducer = partition_lock.newCondition();
 	
 	public int currentMRCursor;

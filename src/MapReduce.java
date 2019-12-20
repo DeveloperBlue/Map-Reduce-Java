@@ -24,6 +24,8 @@ public class MapReduce {
 	static MapperReducerAPI customMR; 
 	static int numPartitions;
 	
+	static String test_script = null; // Script for testing non-default cybersla
+	
 	static void MREmit(Object key, Object value) {
 		//TODO: (key, value) must be emit into PartitionTable.
 		// use Partitioner defined in MapperReducerAPI to
@@ -49,7 +51,7 @@ public class MapReduce {
 			
 			if (Objects.equals(node.key, key)) {
 				current_partition.currentMRCursor = current_partition.currentMRCursor + 1;
-				return node;
+				return node.val;
 			} else {
 				return null;
 			}
@@ -84,6 +86,10 @@ public class MapReduce {
 			return filename + "." + current;
 		}
 		*/
+	}
+	
+	static void setTestScript(String test_script) {
+		MapReduce.test_script = test_script;
 	}
 
 	static void MRRun(String inputFileName, MapperReducerAPI mapperReducerObj, int num_mappers, int num_reducers){
@@ -128,7 +134,7 @@ public class MapReduce {
 			}
 		}
 
-		// pt.printPartitions();
+		pt.printPartitions();
 		
     	LOGGER.log(Level.INFO, "All Maps are completed");
     	
@@ -218,6 +224,7 @@ public class MapReduce {
 			System.out.println("Sorting Partition " + this.partition_index);
 			partition.sortPartition();
 			
+			
 			if (!partition.wasReducerSignaled) {
 				synchronized(partition) {
 					System.out.println("Signaling Reducer for Partition " + this.partition_index);
@@ -242,7 +249,7 @@ public class MapReduce {
 
 		public void run(){
 			
-			System.out.println("Recuder for Partition " + this.partition_index + " waiting for signal . . .");
+			System.out.println("Reducer for Partition " + this.partition_index + " waiting for signal . . .");
 			
 			if (!partition.wasReducerSignaled) {
 				synchronized(partition) {
@@ -254,6 +261,8 @@ public class MapReduce {
 					}
 				}
 			}
+			
+			System.out.println("Reducer " + this.partition_index + " signaled . . .");
 			
 			/*
 			while (!partition.isSorted()){
@@ -286,12 +295,21 @@ public class MapReduce {
 
 	/////////////////
 
-	public static void MRPostProcess(String key, int value) {
+	public static void MRPostProcess(String key, Object value) {
 		pwLock.lock();
-		System.out.printf("%s:%d\n", (String)key, value);
-		pw.printf("%s:%d\n", (String)key, value); 
+		System.out.printf("%s:%s\n", (String)key, value.toString());
+		pw.printf("%s:%s\n", (String)key, value.toString()); 
 		pwLock.unlock();
 	}
+	
+	public static void MRPostProcess(String key, Object value, String divider) {
+		pwLock.lock();
+		System.out.printf("%s%s%s\n", (String)key, divider, value.toString());
+		pw.printf("%s%s%s\n", (String)key, divider, value.toString().trim()); 
+		pwLock.unlock();
+	}
+	
+	/////////////////
 
 	private static void setup (int nSplits, String inputFile) {
 		try {
@@ -312,7 +330,18 @@ public class MapReduce {
 	static private void teardown( ) {
 		pw.close();
         try {
-			Process p = Runtime.getRuntime().exec(new String[] { "/bin/sh" , "-c", "./test.sh" });
+        	
+        	Process p;
+        	
+        	if (test_script != null) {
+        		
+        		// For when we want to test other mapreduce implementations, like MutualFriend.
+        		// Set using MapReduce.setTestScript(String test_script) before calling MRRun();
+        		System.out.println("Running custom test_script '" + test_script + "'");
+        		p = Runtime.getRuntime().exec(new String[] { "/bin/sh" , "-c", test_script });
+        	} else {
+        		p = Runtime.getRuntime().exec(new String[] { "/bin/sh" , "-c", "./test.sh" });
+        	}
 
 			// Strange bug on my machine were p.waitFor() never returns
 			// Fixed using: https://stackoverflow.com/questions/5483830/process-waitfor-never-returns
