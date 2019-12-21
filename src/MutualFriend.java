@@ -8,18 +8,24 @@ public class MutualFriend extends MapperReducerAPI{
 		    String token;
 		    while ((token = br.readLine()) != null) {
 		    	
-		    	String[] kp_split = token.split(":"); // "A : B C D" ==> ["A" , "B C D"]
+		    	String[] kp_split = token.split("\\s+", 2); // "A	B,C,D" ==> ["A" , "B C D"]
 		    	String person = kp_split[0].trim();
-		    	String[] friends = kp_split[1].trim().split(" "); // B C D ==> ["B", "C", "D"]
+		    	String[] friends = kp_split[1].trim().split(","); // B.C,D ==> ["B", "C", "D"]
 		    	
-		    	System.out.println("p:'" + person + "'");
+		    	// System.out.println("p:'" + person + "'");
 		    
 		    	// (person, friends[i]) -> (friends)
 		    	for (int i = 0; i < friends.length; i++) {
 		    		// MapReduce.MREmit(person + ", " + friends[i], kp_split[1]);
 		    		System.out.println("f:'" + friends[i] + "'");
-		    		System.out.println(((person.compareTo(friends[i].trim()) < 0) ? (person + " " + friends[i].trim()) : (friends[i].trim() + " " + person)) + " : " + kp_split[1].trim());
-		    		MapReduce.MREmit((person.compareTo(friends[i].trim()) < 0) ? (person + " " + friends[i].trim()) : (friends[i].trim() + " " + person), kp_split[1].trim());
+		    		try {
+		    			int p1 = Integer.parseInt(person);
+		    			int p2 = Integer.parseInt(friends[i]);
+		    			// System.out.println(((p1 < p2) ? (person + "," + friends[i].trim()) : (friends[i].trim() + "," + person)) + " : " + kp_split[1].trim());
+		    			MapReduce.MREmit((p1 < p2) ? (person + "," + friends[i].trim()) : (friends[i].trim() + "," + person), kp_split[1].trim());
+		    		} catch(NumberFormatException e) {
+		    			
+		    		}
 		    	}
 
 		    }
@@ -38,12 +44,12 @@ public class MutualFriend extends MapperReducerAPI{
 	    
 	    Object friends = MapReduce.MRGetNext(key, partition_number);
 	    while (friends != null) {
-	    	System.out.println("Friends of " + key + " : " + friends);
-	    	friends_master = (friends_master + " " + friends).trim();
+	    	// System.out.println("Friends of " + key + " : " + friends);
+	    	friends_master = (friends_master + "," + friends).trim();
 	    	friends = MapReduce.MRGetNext(key, partition_number);
 	    }
 	    
-	    String[] friends_arr = friends_master.split(" ");
+	    String[] friends_arr = friends_master.split(",");
 	    String mutual_friends = "";
 	    
 	    for (int i = 0; i < friends_arr.length; i++) {
@@ -54,8 +60,8 @@ public class MutualFriend extends MapperReducerAPI{
 	        }
 	    }
 	    
-	    System.out.println("Mutual friends of '" + key + "' -> '" + mutual_friends + "'");
-	    MapReduce.MRPostProcess((String)key, mutual_friends, " : ");
+	    // System.out.println("Mutual friends of '" + key + "' -> '" + mutual_friends + "'");
+	    MapReduce.MRPostProcess((String)key, mutual_friends, "\t");
 	    
 	}
 
@@ -71,7 +77,7 @@ public class MutualFriend extends MapperReducerAPI{
     	}
     	s.close();
     	MapReduce.setTestScript("./test_mutual_friends.sh");
-		MapReduce.MRRun(inputFileName, new MutualFriend(), 1, 1);
+		MapReduce.MRRun(inputFileName, new MutualFriend(), 60, 60);
 	}	
 	
 }

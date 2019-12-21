@@ -120,6 +120,7 @@ public class MapReduce {
 		Thread[] map_array = new Thread [num_mappers];
 
 		for (int i = 0; i < num_mappers; i++){
+			System.out.println("Launching mapper for Partition " + i);
 			Thread mapper_i = new Thread(new Mapper(getSplitFileName(inputFileName, i, num_mappers)));
 			map_array[i] = mapper_i;
 			mapper_i.start();

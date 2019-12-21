@@ -256,7 +256,7 @@ public class LinkedList<AnyType> implements Iterable<AnyType>
           prev = cur;
           cur = cur.next;
        }
-       //insert between prev and cur
+       //insert between cur and prev
        prev.next = new Node<AnyType>(key, cur);  
     }
     
