@@ -1,12 +1,10 @@
 # Map-Reduce-Java
 
-MapReduce is a programming model and an associated implementation for processing and generating big data sets with a parallel, distributed algorithm on a cluster. [^1]
+MapReduce is a programming model and an associated implementation for processing and generating big data sets with a parallel, distributed algorithm on a cluster. [^1](https://en.wikipedia.org/wiki/MapReduce)
 
 You can input a custom number of reducers and mappers to be spun up in their own threads for multi-threaded distributed paralell processing.
 
 Better documentation can be created on request. (Create an Issue)
-
-[^1]: (https://en.wikipedia.org/wiki/MapReduce)
 
 ---
 
@@ -18,7 +16,7 @@ Map-Reduce model implemented for two paradigms:
 Takes an input file (/res/cybersla) and creates a file containing the alphebetized formatted count of each file in the input (word:count)
 
 ### Mutual Friends
-Takes an input file (/res/mutualfriends) and creates a file containing a bi-pair multi-key set of mutual friends (f1,f2[\t]m1, m2, m3, . . .)
+Takes an input file (/res/mutualfriends) and creates a file containing a bi-pair multi-key set of mutual friends (f1,f2[\t]m1,m2,m3,...)
 
 ---
 
